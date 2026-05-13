@@ -1,5 +1,5 @@
-import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import type { ComponentProps } from 'react';
 import { Link, Tabs } from 'expo-router';
 import { Pressable } from 'react-native';
 
@@ -7,9 +7,8 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
+  name: ComponentProps<typeof FontAwesome>['name'];
   color: string;
 }) {
   return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
@@ -22,17 +21,32 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
+        tabBarInactiveTintColor: '#9ca3af',
         headerShown: useClientOnlyValue(false, true),
+        tabBarHideOnKeyboard: true,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarStyle: {
+          backgroundColor: colorScheme === 'dark' ? '#0a0a0a' : '#fafafa',
+          borderTopColor: colorScheme === 'dark' ? '#262626' : '#e5e7eb',
+          elevation: 12,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 10,
+        },
+        headerStyle: {
+          backgroundColor: colorScheme === 'dark' ? '#0a0a0a' : '#ffffff',
+        },
+        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+        headerShadowVisible: false,
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Home',
+          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
           headerRight: () => (
-            <Link href="/modal" asChild>
+            <Link href="/(app)/modal" asChild>
               <Pressable>
                 {({ pressed }) => (
                   <FontAwesome
@@ -50,8 +64,15 @@ export default function TabLayout() {
       <Tabs.Screen
         name="two"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Explore',
+          tabBarIcon: ({ color }) => <TabBarIcon name="map" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
         }}
       />
     </Tabs>

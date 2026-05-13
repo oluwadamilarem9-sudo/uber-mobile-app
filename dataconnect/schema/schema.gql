@@ -1,0 +1,57 @@
+type User @table {
+  authId: String! @unique
+  userType: String!
+  displayName: String!
+  createdAt: Timestamp!
+  email: String
+  photoUrl: String
+  phoneNumber: String
+  rating: Float
+}
+
+type DriverProfile @table {
+  user: User! @unique
+  licenseNumber: String!
+  vehicleMake: String!
+  vehicleModel: String!
+  vehicleColor: String!
+  vehiclePlate: String!
+  isOnline: Boolean!
+  currentLocation: Vector @col(size: 2)
+  bio: String
+}
+
+type RideRequest @table {
+  rider: User!
+  pickupLocation: Vector @col(size: 2)
+  dropoffLocation: Vector @col(size: 2)
+  status: String!
+  requestedAt: Timestamp!
+  driver: DriverProfile
+  estimatedFare: Float
+  actualFare: Float
+  pickupAddress: String
+  dropoffAddress: String
+}
+
+type Trip @table {
+  rideRequest: RideRequest! @unique
+  rider: User!
+  driver: DriverProfile!
+  startTime: Timestamp!
+  startLocation: Vector @col(size: 2)
+  endLocation: Vector @col(size: 2)
+  endTime: Timestamp
+  durationMinutes: Int
+  distanceKm: Float
+  fareAmount: Float
+}
+
+type Review @table {
+  trip: Trip!
+  reviewer: User!
+  reviewedParty: User!
+  rating: Int!
+  createdAt: Timestamp!
+  comment: String
+}

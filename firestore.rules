@@ -1,0 +1,178 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function validGeo(m) {
+      return m is map
+        && m.keys().hasAll(['latitude', 'longitude'])
+        && m.latitude is number
+        && m.longitude is number;
+    }
+
+    function noDriverYet(data) {
+      return !data.keys().hasAny(['driverId']) || data.driverId == null;
+    }
+
+    function validNotificationCreate() {
+      return request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.toUserId is string
+        && request.resource.data.toUserId != request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.body is string
+        && request.resource.data.type is string
+        && request.resource.data.read == false
+        && request.resource.data.keys().hasAll([
+          'fromUserId',
+          'toUserId',
+          'title',
+          'body',
+          'type',
+          'read',
+          'createdAt',
+        ])
+        && (
+          request.resource.data.keys().hasOnly([
+            'fromUserId',
+            'toUserId',
+            'title',
+            'body',
+            'type',
+            'read',
+            'createdAt',
+          ])
+          || (
+            request.resource.data.keys().hasOnly([
+              'fromUserId',
+              'toUserId',
+              'title',
+              'body',
+              'type',
+              'read',
+              'createdAt',
+              'rideRequestId',
+            ])
+            && request.resource.data.rideRequestId is string
+          )
+        );
+    }
+
+    match /users/{userId} {
+      allow read, create, update, delete: if isOwner(userId);
+    }
+
+    match /drivers/{driverId} {
+      allow read, write: if isSignedIn() && request.auth.uid == driverId;
+    }
+
+    match /rides/{rideId} {
+      allow read, write: if false;
+    }
+
+    match /rideRequests/{requestId} {
+      allow read: if isSignedIn() && (
+        resource.data.riderId == request.auth.uid ||
+        resource.data.driverId == request.auth.uid ||
+        (resource.data.status == 'requested' && noDriverYet(resource.data))
+      );
+
+      allow create: if isSignedIn()
+        && request.resource.data.riderId == request.auth.uid
+        && request.resource.data.status == 'requested'
+        && request.resource.data.riderName is string
+        && validGeo(request.resource.data.pickup)
+        && validGeo(request.resource.data.dropoff)
+        && !request.resource.data.keys().hasAny(['driverId']);
+
+      allow update: if isSignedIn() && (
+        (
+          resource.data.riderId == request.auth.uid
+          && request.resource.data.riderId == resource.data.riderId
+          && request.resource.data.pickup == resource.data.pickup
+          && request.resource.data.dropoff == resource.data.dropoff
+          && request.resource.data.driverId == resource.data.driverId
+          && request.resource.data.driverName == resource.data.driverName
+          && request.resource.data.driverLocation == resource.data.driverLocation
+          && request.resource.data.status == 'cancelled'
+          && (resource.data.status == 'requested'
+            || resource.data.status == 'accepted'
+            || resource.data.status == 'arriving')
+        )
+        ||
+        (
+          resource.data.status == 'requested'
+          && noDriverYet(resource.data)
+          && request.resource.data.riderId == resource.data.riderId
+          && request.resource.data.pickup == resource.data.pickup
+          && request.resource.data.dropoff == resource.data.dropoff
+          && request.resource.data.status == 'accepted'
+          && request.resource.data.driverId == request.auth.uid
+          && request.resource.data.driverName is string
+          && !request.resource.data.keys().hasAny(['driverLocation'])
+        )
+        ||
+        (
+          resource.data.driverId == request.auth.uid
+          && request.resource.data.driverId == resource.data.driverId
+          && request.resource.data.driverName == resource.data.driverName
+          && request.resource.data.riderId == resource.data.riderId
+          && request.resource.data.pickup == resource.data.pickup
+          && request.resource.data.dropoff == resource.data.dropoff
+          && request.resource.data.driverLocation == resource.data.driverLocation
+          && (
+            (resource.data.status == 'accepted' && request.resource.data.status == 'arriving')
+            || (resource.data.status == 'arriving' && request.resource.data.status == 'ongoing')
+            || (resource.data.status == 'ongoing' && request.resource.data.status == 'completed')
+          )
+        )
+        ||
+        (
+          resource.data.driverId == request.auth.uid
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.driverId == resource.data.driverId
+          && request.resource.data.driverName == resource.data.driverName
+          && request.resource.data.riderId == resource.data.riderId
+          && request.resource.data.pickup == resource.data.pickup
+          && request.resource.data.dropoff == resource.data.dropoff
+          && (resource.data.status == 'accepted'
+            || resource.data.status == 'arriving'
+            || resource.data.status == 'ongoing')
+          && validGeo(request.resource.data.driverLocation)
+        )
+      );
+
+      allow delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.toUserId == request.auth.uid;
+
+      allow create: if isSignedIn() && validNotificationCreate();
+
+      allow update: if isSignedIn()
+        && resource.data.toUserId == request.auth.uid
+        && request.resource.data.toUserId == resource.data.toUserId
+        && request.resource.data.fromUserId == resource.data.fromUserId
+        && request.resource.data.title == resource.data.title
+        && request.resource.data.body == resource.data.body
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.rideRequestId == resource.data.rideRequestId
+        && resource.data.read == false
+        && request.resource.data.read == true;
+
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
