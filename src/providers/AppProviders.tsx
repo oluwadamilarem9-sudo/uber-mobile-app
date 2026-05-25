@@ -34,7 +34,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const queryClient = useRef(
     new QueryClient({
       defaultOptions: {
-        queries: { retry: 1 },
+        queries: {
+          retry: 1,
+          /** Fewer network round-trips on revisit; explicit invalidations still win. */
+          staleTime: 30_000,
+          gcTime: 30 * 60 * 1000,
+        },
       },
     }),
   ).current;

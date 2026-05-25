@@ -4,10 +4,12 @@ import type { RideRequest } from '@/src/types/ride';
 
 type Props = {
   ride: RideRequest;
-  height: number;
+  height?: number;
+  fullScreen?: boolean;
+  ghostCars?: { latitude: number; longitude: number }[];
 };
 
-export function RideTripMap({ ride, height }: Props) {
+export function RideTripMap({ ride, height = 220 }: Props) {
   return (
     <View
       style={{ height }}

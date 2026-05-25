@@ -1,28 +1,38 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Text, View } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
+import MapView, { Marker, Polyline, type Region } from 'react-native-maps';
 
+import { useColorScheme } from '@/components/useColorScheme';
 import { fetchDrivingRoute, type LatLng } from '@/src/lib/directions';
+import { mapDarkStyle } from '@/src/lib/mapDarkStyle';
 import type { RideRequest } from '@/src/types/ride';
 
 type Props = {
   ride: RideRequest;
-  height: number;
+  /** Full-bleed map behind UI chrome. */
+  fullScreen?: boolean;
+  /** Card height when not fullScreen. */
+  height?: number;
+  /** Simulated nearby vehicles while status is `requested`. */
+  ghostCars?: LatLng[];
 };
 
-const GOOGLE_MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+import { GOOGLE_MAPS_KEY, MAP_FEATURES, MAP_PROVIDER } from '@/src/lib/mapConfig';
 
 function toLatLng(p: { latitude: number; longitude: number }): LatLng {
   return { latitude: p.latitude, longitude: p.longitude };
 }
 
-export function RideTripMap({ ride, height }: Props) {
-  const mapRef = useRef<MapView>(null);
+export function RideTripMap({ ride, fullScreen, height = 220, ghostCars }: Props) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [routeCoords, setRouteCoords] = useState<LatLng[]>([]);
   const [routing, setRouting] = useState(false);
 
+  const driverPoint = ride.driverLocation ? toLatLng(ride.driverLocation) : null;
+
   const routeEndpoints = useMemo(() => {
-    const driver = ride.driverLocation ? toLatLng(ride.driverLocation) : null;
+    const driver = driverPoint;
     if (ride.status === 'accepted' || ride.status === 'arriving') {
       if (driver) {
         return { from: driver, to: toLatLng(ride.pickup) };
@@ -39,8 +49,8 @@ export function RideTripMap({ ride, height }: Props) {
     ride.pickup.longitude,
     ride.dropoff.latitude,
     ride.dropoff.longitude,
-    ride.driverLocation?.latitude,
-    ride.driverLocation?.longitude,
+    driverPoint?.latitude,
+    driverPoint?.longitude,
   ]);
 
   useEffect(() => {
@@ -60,9 +70,9 @@ export function RideTripMap({ ride, height }: Props) {
     setRouting(true);
     const t = setTimeout(() => {
       void fetchDrivingRoute(from, to, GOOGLE_MAPS_KEY)
-        .then((coords) => {
+        .then((route) => {
           if (!cancelled) {
-            setRouteCoords(coords);
+            setRouteCoords(route.coordinates);
           }
         })
         .catch(() => {
@@ -75,7 +85,7 @@ export function RideTripMap({ ride, height }: Props) {
             setRouting(false);
           }
         });
-    }, 900);
+    }, 650);
 
     return () => {
       cancelled = true;
@@ -93,8 +103,8 @@ export function RideTripMap({ ride, height }: Props) {
       latitude: number;
       longitude: number;
     }[];
-    const lat = pts.reduce((s, p) => s + p.latitude, 0) / pts.length;
-    const lng = pts.reduce((s, p) => s + p.longitude, 0) / pts.length;
+    const lat = pts.reduce((s, p) => s + p.latitude, 0) / Math.max(1, pts.length);
+    const lng = pts.reduce((s, p) => s + p.longitude, 0) / Math.max(1, pts.length);
     return {
       latitude: lat,
       longitude: lng,
@@ -110,19 +120,26 @@ export function RideTripMap({ ride, height }: Props) {
     ride.driverLocation?.longitude,
   ]);
 
+  const mapStyle = fullScreen ? StyleSheet.absoluteFillObject : { height };
+
   return (
-    <View style={{ height }} className="overflow-hidden rounded-2xl bg-gray-100">
+    <View style={mapStyle} className={fullScreen ? '' : 'overflow-hidden rounded-2xl bg-gray-100'}>
       <MapView
-        ref={mapRef}
-        style={{ flex: 1 }}
-        provider={GOOGLE_MAPS_KEY ? PROVIDER_GOOGLE : undefined}
+        style={StyleSheet.absoluteFillObject}
+        provider={MAP_PROVIDER}
         initialRegion={initialRegion}
         showsUserLocation={Platform.OS !== 'web'}
-        showsMyLocationButton={Platform.OS === 'android'}>
+        showsMyLocationButton={Platform.OS === 'android'}
+        showsTraffic={fullScreen === true && MAP_FEATURES.traffic}
+        loadingEnabled
+        customMapStyle={fullScreen && isDark ? [...mapDarkStyle] : undefined}>
         <Marker coordinate={toLatLng(ride.pickup)} title="Pickup" pinColor="#22c55e" />
         <Marker coordinate={toLatLng(ride.dropoff)} title="Drop-off" pinColor="#ef4444" />
-        {ride.driverLocation ? (
-          <Marker coordinate={toLatLng(ride.driverLocation)} title="Driver" pinColor="#F5C400" />
+        {ghostCars?.map((g, i) => (
+          <Marker key={`ghost-${i}`} coordinate={g} title="Nearby" opacity={0.85} pinColor="#9ca3af" />
+        ))}
+        {driverPoint ? (
+          <Marker coordinate={driverPoint} title="Driver" pinColor="#FFCC00" />
         ) : null}
         {routeCoords.length > 1 ? (
           <Polyline coordinates={routeCoords} strokeColor="#111827" strokeWidth={4} />
@@ -130,8 +147,8 @@ export function RideTripMap({ ride, height }: Props) {
       </MapView>
       {routing ? (
         <View className="absolute left-0 right-0 top-3 items-center">
-          <View className="rounded-full bg-white/95 px-3 py-2 shadow">
-            <ActivityIndicator color="#F5C400" />
+          <View className="rounded-full border border-gray-100 bg-white/95 px-3 py-2 shadow">
+            <ActivityIndicator color="#FFCC00" />
           </View>
         </View>
       ) : null}

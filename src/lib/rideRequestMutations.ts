@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 
 import { getFirestoreDb } from '@/src/firebase/firestore';
+import type { RideProductId } from '@/src/lib/rideEstimates';
 import type { GeoPoint, RideRequest, RideStatus } from '@/src/types/ride';
 
 export async function createRideRequest(input: {
@@ -16,9 +17,12 @@ export async function createRideRequest(input: {
   riderName: string;
   pickup: GeoPoint;
   dropoff: GeoPoint;
+  rideProductId?: RideProductId;
+  fareEstimateUsd?: number;
+  etaMinutesGuess?: number;
 }): Promise<string> {
   const db = getFirestoreDb();
-  const ref = await addDoc(collection(db, 'rideRequests'), {
+  const payload: Record<string, unknown> = {
     riderId: input.riderId,
     riderName: input.riderName,
     pickup: input.pickup,
@@ -26,7 +30,17 @@ export async function createRideRequest(input: {
     status: 'requested' satisfies RideStatus,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  };
+  if (input.rideProductId) {
+    payload.rideProductId = input.rideProductId;
+  }
+  if (typeof input.fareEstimateUsd === 'number' && Number.isFinite(input.fareEstimateUsd)) {
+    payload.fareEstimateUsd = input.fareEstimateUsd;
+  }
+  if (typeof input.etaMinutesGuess === 'number' && Number.isFinite(input.etaMinutesGuess)) {
+    payload.etaMinutesGuess = input.etaMinutesGuess;
+  }
+  const ref = await addDoc(collection(db, 'rideRequests'), payload);
   return ref.id;
 }
 
@@ -74,6 +88,7 @@ export async function cancelRideRequest(requestId: string, riderId: string) {
     }
     if (
       data.status === 'completed' ||
+      data.status === 'payment_complete' ||
       data.status === 'cancelled' ||
       data.status === 'ongoing'
     ) {
@@ -140,11 +155,131 @@ export async function updateRideDriverLocation(
   if (data.driverId !== driverId) {
     return;
   }
-  if (data.status !== 'accepted' && data.status !== 'arriving' && data.status !== 'ongoing') {
+  if (
+    data.status !== 'accepted' &&
+    data.status !== 'arriving' &&
+    data.status !== 'ongoing'
+  ) {
     return;
   }
   await updateDoc(ref, {
     driverLocation: location,
     updatedAt: serverTimestamp(),
+  });
+}
+
+/** Rider marks trip paid / settled after driver completed the trip (Uber-style final step). */
+export async function markRidePaymentComplete(requestId: string, riderId: string) {
+  const db = getFirestoreDb();
+  const ref = doc(db, 'rideRequests', requestId);
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) {
+      throw new Error('Ride request not found.');
+    }
+    const data = snap.data() as RideRequest;
+    if (data.riderId !== riderId) {
+      throw new Error('Only the rider can confirm payment.');
+    }
+    if (data.status !== 'completed') {
+      throw new Error('Trip must be completed before payment can be confirmed.');
+    }
+    transaction.update(ref, {
+      status: 'payment_complete' satisfies RideStatus,
+      updatedAt: serverTimestamp(),
+      /** No external PSP — marks doc for rules + UI. */
+      paymentSimulated: true,
+    });
+  });
+}
+
+const MAX_RATING_COMMENT = 280;
+
+/** Rider rates driver once, after `payment_complete`. */
+export async function submitRiderRatesDriver(
+  requestId: string,
+  riderId: string,
+  stars: number,
+  comment?: string,
+) {
+  if (!Number.isInteger(stars) || stars < 1 || stars > 5) {
+    throw new Error('Pick a rating from 1 to 5.');
+  }
+  const trimmed = comment?.trim() ?? '';
+  if (trimmed.length > MAX_RATING_COMMENT) {
+    throw new Error('Comment is too long.');
+  }
+
+  const db = getFirestoreDb();
+  const ref = doc(db, 'rideRequests', requestId);
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) {
+      throw new Error('Ride request not found.');
+    }
+    const data = snap.data() as RideRequest;
+    if (data.riderId !== riderId) {
+      throw new Error('Only the rider can submit this rating.');
+    }
+    if (data.status !== 'payment_complete') {
+      throw new Error('You can rate after the trip is fully settled.');
+    }
+    if (typeof data.riderRatingDriver === 'number') {
+      throw new Error('You already rated this trip.');
+    }
+    const payload: Record<string, unknown> = {
+      riderRatingDriver: stars,
+      updatedAt: serverTimestamp(),
+    };
+    if (trimmed.length > 0) {
+      payload.riderRatingComment = trimmed;
+    }
+    transaction.update(ref, payload);
+  });
+}
+
+/** Driver rates rider once, after `payment_complete`. */
+export async function submitDriverRatesRider(
+  requestId: string,
+  driverId: string,
+  stars: number,
+  comment?: string,
+) {
+  if (!Number.isInteger(stars) || stars < 1 || stars > 5) {
+    throw new Error('Pick a rating from 1 to 5.');
+  }
+  const trimmed = comment?.trim() ?? '';
+  if (trimmed.length > MAX_RATING_COMMENT) {
+    throw new Error('Comment is too long.');
+  }
+
+  const db = getFirestoreDb();
+  const ref = doc(db, 'rideRequests', requestId);
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) {
+      throw new Error('Ride request not found.');
+    }
+    const data = snap.data() as RideRequest;
+    if (data.driverId !== driverId) {
+      throw new Error('Only the assigned driver can submit this rating.');
+    }
+    if (data.status !== 'payment_complete') {
+      throw new Error('You can rate after the trip is fully settled.');
+    }
+    if (typeof data.driverRatingRider === 'number') {
+      throw new Error('You already rated this trip.');
+    }
+    const payload: Record<string, unknown> = {
+      driverRatingRider: stars,
+      updatedAt: serverTimestamp(),
+    };
+    if (trimmed.length > 0) {
+      payload.driverRatingComment = trimmed;
+    }
+    transaction.update(ref, payload);
   });
 }

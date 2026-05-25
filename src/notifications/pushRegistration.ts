@@ -17,7 +17,7 @@ export async function ensureAndroidNotificationChannel() {
     name: 'Ride updates',
     importance: Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#F5C400',
+    lightColor: '#FFD000',
   });
 }
 

@@ -61,7 +61,7 @@ export default function OnboardingScreen() {
     return (
       <View className="flex-1 justify-center bg-white px-6">
         <Text className="text-center text-base text-gray-700">
-          Add Firebase keys to `.env` to save your profile in Firestore.
+          Connect this app to OtterRide cloud to save your profile and continue.
         </Text>
         <Pressable
           onPress={() => router.replace('/')}
@@ -79,7 +79,7 @@ export default function OnboardingScreen() {
   if (!isPending && profileLooksComplete(profile)) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#F5C400" />
+        <ActivityIndicator size="large" color="#FFCC00" />
       </View>
     );
   }
@@ -87,7 +87,7 @@ export default function OnboardingScreen() {
   if (isPending) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#F5C400" />
+        <ActivityIndicator size="large" color="#FFCC00" />
       </View>
     );
   }
@@ -121,13 +121,13 @@ export default function OnboardingScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-white">
+      className="flex-1 bg-surface">
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingVertical: 24 }}>
         {step === 1 ? (
           <>
-            <Text className="text-lg font-semibold text-gray-900">Who are you?</Text>
+            <Text className="text-2xl font-bold text-ink">Who are you?</Text>
             <Text className="mt-2 text-sm text-gray-600">
               This shows on your profile. You can edit it later.
             </Text>
@@ -137,7 +137,8 @@ export default function OnboardingScreen() {
               value={displayName}
               onChangeText={setDisplayName}
               placeholder="Alex"
-              className="mt-2 rounded-xl border border-gray-200 px-4 py-3 text-base text-gray-900"
+              placeholderTextColor="#9ca3af"
+              className="mt-2 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-base text-ink shadow-sm"
             />
 
             <Text className="mt-4 text-sm font-medium text-gray-700">Phone (optional)</Text>
@@ -146,19 +147,20 @@ export default function OnboardingScreen() {
               onChangeText={setPhone}
               keyboardType="phone-pad"
               placeholder="+1 …"
-              className="mt-2 rounded-xl border border-gray-200 px-4 py-3 text-base text-gray-900"
+              placeholderTextColor="#9ca3af"
+              className="mt-2 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-base text-ink shadow-sm"
             />
 
             <Pressable
               disabled={busy}
               onPress={onNextFromStep1}
-              className="mt-10 items-center rounded-xl bg-primary py-4 active:opacity-90 disabled:opacity-50">
-              <Text className="text-base font-semibold text-gray-900">Next</Text>
+              className="mt-10 items-center rounded-3xl bg-primary py-4 shadow-md shadow-amber-900/15 active:opacity-95 disabled:opacity-50">
+              <Text className="text-base font-bold text-ink">Next</Text>
             </Pressable>
           </>
         ) : (
           <>
-            <Text className="text-lg font-semibold text-gray-900">How will you use this app?</Text>
+            <Text className="text-2xl font-bold text-ink">How will you use OtterRide?</Text>
             <Text className="mt-2 text-sm text-gray-600">
               You can change this later in Profile. Phase 3+ adds maps and rides.
             </Text>
@@ -189,14 +191,14 @@ export default function OnboardingScreen() {
               <Pressable
                 disabled={busy}
                 onPress={() => setStep(1)}
-                className="flex-1 items-center rounded-xl border border-gray-200 bg-secondary py-4 active:opacity-90">
-                <Text className="font-semibold text-gray-900">Back</Text>
+                className="flex-1 items-center rounded-3xl border-2 border-gray-200 bg-white py-4 active:opacity-90">
+                <Text className="font-bold text-ink">Back</Text>
               </Pressable>
               <Pressable
                 disabled={busy}
                 onPress={onFinish}
-                className="flex-1 items-center rounded-xl bg-primary py-4 active:opacity-90 disabled:opacity-50">
-                <Text className="font-semibold text-gray-900">{busy ? 'Saving…' : 'Finish'}</Text>
+                className="flex-1 items-center rounded-3xl bg-primary py-4 shadow-md shadow-amber-900/15 active:opacity-95 disabled:opacity-50">
+                <Text className="font-bold text-ink">{busy ? 'Saving…' : 'Finish'}</Text>
               </Pressable>
             </View>
           </>

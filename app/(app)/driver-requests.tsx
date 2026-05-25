@@ -35,7 +35,7 @@ export default function DriverRequestsScreen() {
   const onAccept = useCallback(
     async (row: RideRequest) => {
       if (!hasFirebaseConfig || !uid) {
-        Alert.alert('Firebase', 'Configure `.env` and sign in.');
+        Alert.alert('Not available', 'Sign in with a connected account to view open requests.');
         return;
       }
       if (!isOnline) {
@@ -82,17 +82,19 @@ export default function DriverRequestsScreen() {
 
   if (!hasFirebaseConfig) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-base text-gray-600">Add Firebase config in `.env`.</Text>
+      <View className="flex-1 items-center justify-center bg-surface px-6">
+        <Text className="text-center text-base text-gray-600">
+          Open requests require a cloud-connected driver account.
+        </Text>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-surface">
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#111" />
+          <ActivityIndicator size="large" color="#FFCC00" />
         </View>
       ) : (
         <FlatList
@@ -112,8 +114,8 @@ export default function DriverRequestsScreen() {
           ListHeaderComponent={
             <>
               {!presenceLoading && !isOnline ? (
-                <View className="mb-3 rounded-xl bg-amber-100 px-3 py-3">
-                  <Text className="text-sm font-medium text-amber-950">
+                <View className="mb-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3">
+                  <Text className="text-sm font-semibold text-ink">
                     You are offline. Open Profile, scroll to Driver availability, and switch Online to
                     accept requests.
                   </Text>

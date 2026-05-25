@@ -146,6 +146,71 @@ service cloud.firestore {
             || resource.data.status == 'ongoing')
           && validGeo(request.resource.data.driverLocation)
         )
+        ||
+        (
+          resource.data.riderId == request.auth.uid
+          && request.resource.data.riderId == resource.data.riderId
+          && request.resource.data.pickup == resource.data.pickup
+          && request.resource.data.dropoff == resource.data.dropoff
+          && request.resource.data.driverId == resource.data.driverId
+          && request.resource.data.driverName == resource.data.driverName
+          && request.resource.data.riderName == resource.data.riderName
+          && request.resource.data.driverLocation == resource.data.driverLocation
+          && resource.data.status == 'completed'
+          && request.resource.data.status == 'payment_complete'
+        )
+        ||
+        (
+          resource.data.riderId == request.auth.uid
+          && resource.data.status == 'payment_complete'
+          && request.resource.data.status == 'payment_complete'
+          && request.resource.data.riderId == resource.data.riderId
+          && request.resource.data.driverId == resource.data.driverId
+          && request.resource.data.driverName == resource.data.driverName
+          && request.resource.data.riderName == resource.data.riderName
+          && request.resource.data.pickup == resource.data.pickup
+          && request.resource.data.dropoff == resource.data.dropoff
+          && request.resource.data.driverLocation == resource.data.driverLocation
+          && (
+            (!('paymentSimulated' in resource.data) && !('paymentSimulated' in request.resource.data))
+            || request.resource.data.paymentSimulated == resource.data.paymentSimulated
+          )
+          && (!('riderRatingDriver' in resource.data) || resource.data.riderRatingDriver == null)
+          && request.resource.data.riderRatingDriver is int
+          && request.resource.data.riderRatingDriver >= 1
+          && request.resource.data.riderRatingDriver <= 5
+          && (!('riderRatingComment' in request.resource.data)
+            || (request.resource.data.riderRatingComment is string
+              && request.resource.data.riderRatingComment.size() <= 280))
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['riderRatingDriver', 'riderRatingComment', 'updatedAt'])
+        )
+        ||
+        (
+          resource.data.driverId == request.auth.uid
+          && resource.data.status == 'payment_complete'
+          && request.resource.data.status == 'payment_complete'
+          && request.resource.data.riderId == resource.data.riderId
+          && request.resource.data.driverId == resource.data.driverId
+          && request.resource.data.driverName == resource.data.driverName
+          && request.resource.data.riderName == resource.data.riderName
+          && request.resource.data.pickup == resource.data.pickup
+          && request.resource.data.dropoff == resource.data.dropoff
+          && request.resource.data.driverLocation == resource.data.driverLocation
+          && (
+            (!('paymentSimulated' in resource.data) && !('paymentSimulated' in request.resource.data))
+            || request.resource.data.paymentSimulated == resource.data.paymentSimulated
+          )
+          && (!('driverRatingRider' in resource.data) || resource.data.driverRatingRider == null)
+          && request.resource.data.driverRatingRider is int
+          && request.resource.data.driverRatingRider >= 1
+          && request.resource.data.driverRatingRider <= 5
+          && (!('driverRatingComment' in request.resource.data)
+            || (request.resource.data.driverRatingComment is string
+              && request.resource.data.driverRatingComment.size() <= 280))
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['driverRatingRider', 'driverRatingComment', 'updatedAt'])
+        )
       );
 
       allow delete: if false;

@@ -111,5 +111,6 @@ STOP after Phase 6.
 
 ## Dev server (Expo)
 
-- **`npm start`** uses **LAN** (`expo start --lan`): phone and PC on the same Wi‑Fi. This avoids **ngrok** and the error `ngrok tunnel took too long to connect`.
-- Use **`npm run start:tunnel`** only when you need a public URL (different network). If it times out, try another network, disable VPN, allow Node through the firewall, or stay on LAN.
+- **`npm start`** uses **LAN** (`expo start --lan`): phone and PC on the same Wi‑Fi. **Use this by default** — it avoids ngrok.
+- **`npm run start:tunnel`** only when the phone is on a different network. If you see `ngrok tunnel took too long to connect`, see **`docs/EXPO_TUNNEL.md`** and run **`npm run check:tunnel`** to diagnose.
+- Do **not** run `npx expo start:tunnel` (invalid). Use `npm run start:tunnel`.

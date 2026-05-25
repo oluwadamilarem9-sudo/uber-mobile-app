@@ -11,11 +11,13 @@ export function useRideRequestSubscription(requestId: string | undefined) {
   const [ride, setRide] = useState<RideRequest | null>(null);
   const [loading, setLoading] = useState(Boolean(requestId));
   const [error, setError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (!hasFirebaseConfig || !requestId) {
       setRide(null);
       setLoading(false);
+      setSyncing(false);
       return;
     }
 
@@ -25,7 +27,9 @@ export function useRideRequestSubscription(requestId: string | undefined) {
 
     const unsub = onSnapshot(
       ref,
+      { includeMetadataChanges: true },
       (snap) => {
+        setSyncing(snap.metadata.hasPendingWrites);
         if (!snap.exists()) {
           setRide(null);
           setError('Not found');
@@ -38,11 +42,12 @@ export function useRideRequestSubscription(requestId: string | undefined) {
       (e) => {
         setError(e.message);
         setLoading(false);
+        setSyncing(false);
       },
     );
 
     return () => unsub();
   }, [requestId]);
 
-  return { ride, loading, error };
+  return { ride, loading, error, syncing };
 }

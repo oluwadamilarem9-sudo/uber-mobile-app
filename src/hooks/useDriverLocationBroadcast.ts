@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 
 import { updateRideDriverLocation } from '@/src/lib/rideRequestMutations';
 
-const MIN_INTERVAL_MS = 6000;
+const MIN_INTERVAL_MS = 4000;
 
 type Args = {
   requestId: string | undefined;
@@ -33,7 +33,7 @@ export function useDriverLocationBroadcast({ requestId, driverId, enabled }: Arg
       subscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.Balanced,
-          distanceInterval: 35,
+          distanceInterval: 22,
           timeInterval: MIN_INTERVAL_MS,
         },
         (pos) => {

@@ -1,7 +1,9 @@
 import React, { memo } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
+import { PressableScale } from '@/components/ui/PressableScale';
 import type { RideRequest } from '@/src/types/ride';
+import { hapticImpactLight } from '@/src/lib/haptics';
 
 export type DriverRequestRowProps = {
   item: RideRequest;
@@ -12,23 +14,27 @@ export type DriverRequestRowProps = {
 
 function DriverRequestRowInner({ item, acceptDisabled, busyHere, onAccept }: DriverRequestRowProps) {
   return (
-    <View className="mb-3 rounded-2xl border border-gray-200/90 bg-white px-4 py-3 shadow-sm">
-      <Text className="text-base font-semibold text-gray-900">{item.riderName}</Text>
+    <View className="mb-3 rounded-3xl border border-gray-200/90 bg-white px-4 py-4 shadow-md shadow-black/5">
+      <Text className="text-base font-semibold text-ink">{item.riderName}</Text>
       <Text className="mt-1 text-xs text-gray-500">
         Pickup {item.pickup.latitude.toFixed(4)}, {item.pickup.longitude.toFixed(4)} → Drop{' '}
         {item.dropoff.latitude.toFixed(4)}, {item.dropoff.longitude.toFixed(4)}
       </Text>
-      <Pressable
-        onPress={() => void onAccept(item)}
+      <PressableScale
+        onPress={() => {
+          hapticImpactLight();
+          void onAccept(item);
+        }}
         disabled={acceptDisabled}
-        android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
-        className="mt-3 items-center justify-center rounded-xl bg-gray-900 py-3 active:opacity-90 disabled:opacity-50">
+        android_ripple={{ color: 'rgba(0,0,0,0.12)' }}
+        className="mt-3 items-center justify-center rounded-3xl bg-primary py-3.5 shadow-md shadow-amber-900/15 disabled:opacity-50"
+        hapticOnPressIn={false}>
         {busyHere ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color="#1A1A1A" />
         ) : (
-          <Text className="text-sm font-semibold text-white">Accept</Text>
+          <Text className="text-sm font-bold text-ink">Accept</Text>
         )}
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }

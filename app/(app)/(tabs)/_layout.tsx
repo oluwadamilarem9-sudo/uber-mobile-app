@@ -1,78 +1,135 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import type { ComponentProps } from 'react';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
+import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { appFonts } from '@/src/theme/fonts';
 
-function TabBarIcon(props: {
+const ACTIVE = '#FFCC00';
+const INACTIVE_LIGHT = '#9CA3AF';
+const INACTIVE_DARK = 'rgba(255,255,255,0.42)';
+
+function TabBarIcon({
+  name,
+  color,
+  focused,
+}: {
   name: ComponentProps<typeof FontAwesome>['name'];
   color: string;
+  focused: boolean;
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+  return (
+    <FontAwesome
+      name={name}
+      color={color}
+      size={focused ? 23 : 21}
+      style={{ marginBottom: Platform.OS === 'ios' ? 1 : 0 }}
+    />
+  );
 }
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const insets = useSafeAreaInsets();
+  const isDark = colorScheme === 'dark';
+  const bottomGap = Math.max(insets.bottom, 10);
+  const barBody = 54;
 
   return (
     <Tabs
+      detachInactiveScreens
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        tabBarInactiveTintColor: '#9ca3af',
-        headerShown: useClientOnlyValue(false, true),
+        headerShown: false,
         tabBarHideOnKeyboard: true,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-        tabBarStyle: {
-          backgroundColor: colorScheme === 'dark' ? '#0a0a0a' : '#fafafa',
-          borderTopColor: colorScheme === 'dark' ? '#262626' : '#e5e7eb',
-          elevation: 12,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 10,
+        tabBarActiveTintColor: ACTIVE,
+        tabBarInactiveTintColor: isDark ? INACTIVE_DARK : INACTIVE_LIGHT,
+        tabBarLabelStyle: {
+          fontSize: 10.5,
+          fontWeight: '600',
+          letterSpacing: 0.2,
+          fontFamily: appFonts.semibold,
+          marginTop: 2,
+          marginBottom: 0,
         },
-        headerStyle: {
-          backgroundColor: colorScheme === 'dark' ? '#0a0a0a' : '#ffffff',
+        tabBarItemStyle: {
+          paddingTop: 6,
+          paddingBottom: 0,
+          flex: 1,
+          justifyContent: 'center',
         },
-        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
-        headerShadowVisible: false,
+        tabBarStyle: isDark
+          ? {
+              position: 'absolute',
+              left: 14,
+              right: 14,
+              bottom: bottomGap,
+              height: barBody + bottomGap,
+              paddingBottom: bottomGap,
+              paddingTop: 4,
+              borderRadius: 32,
+              backgroundColor: '#121212',
+              borderTopWidth: 0,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: 'rgba(255,255,255,0.1)',
+              paddingHorizontal: 4,
+              elevation: 22,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 14 },
+              shadowOpacity: 0.42,
+              shadowRadius: 28,
+            }
+          : {
+              position: 'absolute',
+              left: 14,
+              right: 14,
+              bottom: bottomGap,
+              height: barBody + bottomGap,
+              paddingBottom: bottomGap,
+              paddingTop: 4,
+              borderRadius: 32,
+              backgroundColor: '#FFFFFF',
+              borderTopWidth: 0,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: 'rgba(0,0,0,0.07)',
+              paddingHorizontal: 4,
+              elevation: 18,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: 0.14,
+              shadowRadius: 26,
+            },
+        tabBarShowLabel: true,
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
-          headerRight: () => (
-            <Link href="/(app)/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          tabBarIcon: ({ color, focused }) => <TabBarIcon name="home" color={color} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="two"
         options={{
           title: 'Explore',
-          tabBarIcon: ({ color }) => <TabBarIcon name="map" color={color} />,
+          tabBarIcon: ({ color, focused }) => <TabBarIcon name="map" color={color} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="rides"
+        options={{
+          title: 'Rides',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name="car" color={color} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
+          tabBarIcon: ({ color, focused }) => <TabBarIcon name="user" color={color} focused={focused} />,
         }}
       />
     </Tabs>

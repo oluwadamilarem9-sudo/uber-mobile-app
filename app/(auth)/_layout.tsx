@@ -1,6 +1,10 @@
 import { Redirect, Stack, useSegments } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 
 import { useAuthStore } from '@/src/stores/authStore';
+
+WebBrowser.maybeCompleteAuthSession();
+import { appFonts } from '@/src/theme/fonts';
 
 /** Screens for logged-out users only. */
 export default function AuthLayout() {
@@ -19,9 +23,17 @@ export default function AuthLayout() {
   return (
     <Stack
       screenOptions={{
+        headerShown: false,
         headerShadowVisible: false,
         headerStyle: { backgroundColor: '#ffffff' },
-        headerTintColor: '#111827',
+        headerTitleStyle: {
+          fontWeight: '600',
+          fontSize: 17,
+          color: '#1A1A1A',
+          fontFamily: appFonts.semibold,
+        },
+        headerTintColor: '#1A1A1A',
+        animation: 'slide_from_right',
       }}>
       <Stack.Screen name="login" options={{ title: 'Sign in' }} />
       <Stack.Screen name="signup" options={{ title: 'Create account' }} />

@@ -9,7 +9,7 @@ import {
 } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { InteractionManager, Platform } from 'react-native';
 
 import { hasFirebaseConfig } from '@/src/firebase/config';
 import { getFirestoreDb } from '@/src/firebase/firestore';
@@ -39,7 +39,16 @@ export function PushNotificationManager() {
     if (!uid || !hasFirebaseConfig || Platform.OS === 'web') {
       return;
     }
-    void registerAndSavePushToken(uid);
+    let cancelled = false;
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (!cancelled) {
+        void registerAndSavePushToken(uid);
+      }
+    });
+    return () => {
+      cancelled = true;
+      task.cancel?.();
+    };
   }, [uid]);
 
   useEffect(() => {
@@ -49,51 +58,63 @@ export function PushNotificationManager() {
 
     let isFirstSnapshot = true;
     const seenIds = new Set<string>();
-    const db = getFirestoreDb();
-    const q = query(
-      collection(db, 'notifications'),
-      where('toUserId', '==', uid),
-      orderBy('createdAt', 'desc'),
-      limit(25),
-    );
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
 
-    const unsub = onSnapshot(q, (snap) => {
-      if (isFirstSnapshot) {
-        isFirstSnapshot = false;
-        snap.docs.forEach((d) => seenIds.add(d.id));
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (cancelled) {
         return;
       }
+      const db = getFirestoreDb();
+      const q = query(
+        collection(db, 'notifications'),
+        where('toUserId', '==', uid),
+        orderBy('createdAt', 'desc'),
+        limit(25),
+      );
 
-      snap.docChanges().forEach((change) => {
-        if (change.type !== 'added') {
+      unsub = onSnapshot(q, (snap) => {
+        if (isFirstSnapshot) {
+          isFirstSnapshot = false;
+          snap.docs.forEach((d) => seenIds.add(d.id));
           return;
         }
-        const docId = change.doc.id;
-        if (seenIds.has(docId)) {
-          return;
-        }
-        seenIds.add(docId);
-        const data = change.doc.data() as Record<string, unknown>;
-        if (data.read === true) {
-          return;
-        }
-        const title = typeof data.title === 'string' ? data.title : 'Update';
-        const body = typeof data.body === 'string' ? data.body : '';
-        const rideRequestId = readRideRequestId(data);
-        void Notifications.scheduleNotificationAsync({
-          content: {
-            title,
-            body,
-            data: rideRequestId ? { rideRequestId } : {},
-            sound: 'default',
-            ...(Platform.OS === 'android' ? { android: { channelId: ANDROID_CHANNEL_ID } } : {}),
-          },
-          trigger: null,
+
+        snap.docChanges().forEach((change) => {
+          if (change.type !== 'added') {
+            return;
+          }
+          const docId = change.doc.id;
+          if (seenIds.has(docId)) {
+            return;
+          }
+          seenIds.add(docId);
+          const data = change.doc.data() as Record<string, unknown>;
+          if (data.read === true) {
+            return;
+          }
+          const title = typeof data.title === 'string' ? data.title : 'Update';
+          const body = typeof data.body === 'string' ? data.body : '';
+          const rideRequestId = readRideRequestId(data);
+          void Notifications.scheduleNotificationAsync({
+            content: {
+              title,
+              body,
+              data: rideRequestId ? { rideRequestId } : {},
+              sound: 'default',
+              ...(Platform.OS === 'android' ? { android: { channelId: ANDROID_CHANNEL_ID } } : {}),
+            },
+            trigger: null,
+          });
         });
       });
     });
 
-    return () => unsub();
+    return () => {
+      cancelled = true;
+      task.cancel?.();
+      unsub?.();
+    };
   }, [uid]);
 
   useEffect(() => {
@@ -121,19 +142,24 @@ export function PushNotificationManager() {
       return;
     }
     coldStartHandled.current = true;
-    void Notifications.getLastNotificationResponseAsync().then((response) => {
-      const raw = response?.notification.request.content.data;
-      const rideRequestId =
-        raw &&
-        typeof raw === 'object' &&
-        'rideRequestId' in raw &&
-        typeof (raw as { rideRequestId?: unknown }).rideRequestId === 'string'
-          ? (raw as { rideRequestId: string }).rideRequestId
-          : undefined;
-      if (rideRequestId) {
-        router.replace({ pathname: '/(app)/ride/[id]', params: { id: rideRequestId } });
-      }
+    const task = InteractionManager.runAfterInteractions(() => {
+      void Notifications.getLastNotificationResponseAsync().then((response) => {
+        const raw = response?.notification.request.content.data;
+        const rideRequestId =
+          raw &&
+          typeof raw === 'object' &&
+          'rideRequestId' in raw &&
+          typeof (raw as { rideRequestId?: unknown }).rideRequestId === 'string'
+            ? (raw as { rideRequestId: string }).rideRequestId
+            : undefined;
+        if (rideRequestId) {
+          router.replace({ pathname: '/(app)/ride/[id]', params: { id: rideRequestId } });
+        }
+      });
     });
+    return () => {
+      task.cancel?.();
+    };
   }, [router]);
 
   return null;

@@ -8,7 +8,7 @@ type Props = {
   className?: string;
 };
 
-/** Light entrance animation for screen sections (Phase 7). */
+/** Light entrance animation for screen sections (Phase 5 polish). */
 export function FadeInView({ children, delay = 0, className }: Props) {
   return (
     <Animated.View entering={FadeInDown.duration(420).delay(delay)} className={className ?? ''}>

@@ -10,6 +10,10 @@ function parseProfile(data: Record<string, unknown>): UserProfileDoc | null {
   const role = data.role === 'rider' || data.role === 'driver' ? data.role : undefined;
   const mode = data.mode === 'rider' || data.mode === 'driver' ? data.mode : undefined;
   const phone = typeof data.phone === 'string' ? data.phone.trim() : undefined;
+  const avatarUrl =
+    typeof data.avatarUrl === 'string' && data.avatarUrl.trim().length > 0
+      ? data.avatarUrl.trim()
+      : undefined;
 
   if (!displayName || !role) {
     return null;
@@ -17,6 +21,7 @@ function parseProfile(data: Record<string, unknown>): UserProfileDoc | null {
 
   return {
     displayName,
+    avatarUrl,
     phone: phone || undefined,
     role,
     mode: mode ?? role,
