@@ -20,7 +20,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ExploreMapSearchOverlay } from '@/components/maps/explore/ExploreMapSearchOverlay';
 import { ExploreRoutePanel } from '@/components/maps/explore/ExploreRoutePanel';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useForegroundLocation } from '@/src/hooks/useForegroundLocation';
 import {
   loadRecentDestinations,
@@ -28,7 +27,6 @@ import {
   type StoredPlace,
 } from '@/src/lib/localRidePreferences';
 import { fetchRoute, type LatLng, type RouteMode } from '@/src/lib/directions';
-import { mapDarkStyle } from '@/src/lib/mapDarkStyle';
 import { GOOGLE_MAPS_KEY, MAP_FEATURES, MAP_PROVIDER } from '@/src/lib/mapConfig';
 import {
   fetchPlaceDetails,
@@ -61,11 +59,8 @@ export function ExploreMapScreen() {
   const [mapMounted, setMapMounted] = useState(false);
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
-  const systemScheme = useColorScheme();
-
   const [mapType, setMapType] = useState<MapType>('standard');
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
-  const useDarkStyle = mapType === 'standard' && systemScheme === 'dark';
 
   const { state: locState, refresh } = useForegroundLocation({ watch: true });
   const gpsOrigin = locState.status === 'ready' ? locState.coords : null;
@@ -463,7 +458,6 @@ export function ExploreMapScreen() {
           showsBuildings
           showsIndoors
           loadingEnabled
-          customMapStyle={useDarkStyle ? [...mapDarkStyle] : undefined}
           onPress={onMapPress}>
           {manualOrigin && origin ? (
             <Marker coordinate={origin} title="Start" pinColor="#22c55e" />
@@ -508,7 +502,7 @@ export function ExploreMapScreen() {
             <Pressable
               onPress={() => setLayerMenuOpen((v) => !v)}
               className="h-11 w-11 items-center justify-center rounded-full bg-white shadow-md shadow-black/15 active:opacity-90">
-              <FontAwesome name="layer-group" size={16} color="#5f6368" />
+              <FontAwesome name="map-o" size={16} color="#5f6368" />
             </Pressable>
             {layerMenuOpen ? (
               <Pressable

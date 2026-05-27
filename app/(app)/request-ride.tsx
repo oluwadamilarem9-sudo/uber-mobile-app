@@ -1,5 +1,5 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, useRouter } from 'expo-router';
+import { Link, Stack, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,17 +9,19 @@ import {
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PlaceSearchField } from '@/components/ride/PlaceSearchField';
 import { RideProductPicker } from '@/components/ride/RideProductPicker';
 import { SkeletonBox } from '@/components/ui/Skeleton';
 import { FadeInView } from '@/components/ui/FadeInView';
 import { hasFirebaseConfig } from '@/src/firebase/config';
 import { useForegroundLocation } from '@/src/hooks/useForegroundLocation';
 import { useUserProfile } from '@/src/hooks/useUserProfile';
+import type { LatLng } from '@/src/lib/directions';
+import { formatMoney } from '@/src/lib/currency';
 import {
   loadRecentDestinations,
   loadSavedPlaces,
@@ -27,26 +29,35 @@ import {
   pushRecentDestination,
   type StoredPlace,
 } from '@/src/lib/localRidePreferences';
-import { estimateTripUsd, RIDE_PRODUCTS, type RideProductId } from '@/src/lib/rideEstimates';
+import { estimateTrip, RIDE_PRODUCTS, type RideProductId } from '@/src/lib/rideEstimates';
+import { reverseGeocode } from '@/src/lib/placesAutocomplete';
+import { GOOGLE_MAPS_KEY } from '@/src/lib/mapConfig';
 import { createRideRequest } from '@/src/lib/rideRequestMutations';
 import { useAuthStore } from '@/src/stores/authStore';
+import { usePreferencesStore } from '@/src/stores/preferencesStore';
 
-function parseCoord(raw: string, fallback: number): number {
-  const n = Number.parseFloat(raw.trim());
-  return Number.isFinite(n) ? n : fallback;
+function emptyEstimates(): Record<RideProductId, { fareUsd: number; minutes: number }> {
+  return RIDE_PRODUCTS.reduce(
+    (acc, p) => {
+      acc[p.id] = { fareUsd: p.fareUsd, minutes: 0 };
+      return acc;
+    },
+    {} as Record<RideProductId, { fareUsd: number; minutes: number }>,
+  );
 }
 
 export default function RequestRideScreen() {
   const router = useRouter();
+  const currency = usePreferencesStore((s) => s.currency);
   const user = useAuthStore((s) => s.user);
   const uid = user?.uid ?? '';
   const { data: profile } = useUserProfile(uid);
   const { state: locState, refresh } = useForegroundLocation();
 
-  const [pickupLat, setPickupLat] = useState('37.7749');
-  const [pickupLng, setPickupLng] = useState('-122.4194');
-  const [dropLat, setDropLat] = useState('37.7899');
-  const [dropLng, setDropLng] = useState('-122.4014');
+  const [pickup, setPickup] = useState<LatLng | null>(null);
+  const [pickupLabel, setPickupLabel] = useState('Your location');
+  const [dropoff, setDropoff] = useState<LatLng | null>(null);
+  const [dropoffLabel, setDropoffLabel] = useState('');
   const [busy, setBusy] = useState(false);
   const [productId, setProductId] = useState<RideProductId>('otter_comfort');
   const [recent, setRecent] = useState<StoredPlace[]>([]);
@@ -68,257 +79,232 @@ export default function RequestRideScreen() {
       return;
     }
     pickupSeededRef.current = true;
-    setPickupLat(String(locState.coords.latitude));
-    setPickupLng(String(locState.coords.longitude));
+    setPickup(locState.coords);
+    if (GOOGLE_MAPS_KEY) {
+      void reverseGeocode(locState.coords.latitude, locState.coords.longitude, GOOGLE_MAPS_KEY).then(
+        setPickupLabel,
+      );
+    } else {
+      setPickupLabel('Current location');
+    }
   }, [locState]);
 
   const riderName =
-    profile?.displayName?.trim() ||
-    user?.email?.split('@')[0]?.trim() ||
-    'Rider';
-
-  const pickup = useMemo(
-    () => ({
-      latitude: parseCoord(pickupLat, NaN),
-      longitude: parseCoord(pickupLng, NaN),
-    }),
-    [pickupLat, pickupLng],
-  );
-  const dropoff = useMemo(
-    () => ({
-      latitude: parseCoord(dropLat, NaN),
-      longitude: parseCoord(dropLng, NaN),
-    }),
-    [dropLat, dropLng],
-  );
+    profile?.displayName?.trim() || user?.email?.split('@')[0]?.trim() || 'Rider';
 
   const estimates = useMemo(() => {
-    const out: Record<RideProductId, { fareUsd: number; minutes: number }> = {
-      otter_x: { fareUsd: 0, minutes: 0 },
-      otter_comfort: { fareUsd: 0, minutes: 0 },
-      otter_xl: { fareUsd: 0, minutes: 0 },
-    };
-    if (![pickup.latitude, pickup.longitude, dropoff.latitude, dropoff.longitude].every(Number.isFinite)) {
+    const out = emptyEstimates();
+    if (!pickup || !dropoff) {
       return out;
     }
     for (const p of RIDE_PRODUCTS) {
-      const e = estimateTripUsd(pickup, dropoff, p);
+      const e = estimateTrip(pickup, dropoff, p);
       out[p.id] = { fareUsd: e.fareUsd, minutes: e.minutes };
     }
     return out;
   }, [pickup, dropoff]);
 
+  const selectedEstimate = estimates[productId];
+
+  const applyDropoff = useCallback((p: StoredPlace) => {
+    setDropoff({ latitude: p.latitude, longitude: p.longitude });
+    setDropoffLabel(p.label);
+  }, []);
+
   const saveDropoff = useCallback(async () => {
-    const dlat = parseCoord(dropLat, NaN);
-    const dlng = parseCoord(dropLng, NaN);
-    if (!Number.isFinite(dlat) || !Number.isFinite(dlng)) {
-      Alert.alert('Drop-off', 'Enter valid drop-off coordinates first.');
+    if (!dropoff || !dropoffLabel.trim()) {
+      Alert.alert('Drop-off', 'Search and select a destination first.');
       return;
     }
     await addSavedPlace({
-      label: `Saved ${dlat.toFixed(2)}, ${dlng.toFixed(2)}`,
-      latitude: dlat,
-      longitude: dlng,
+      label: dropoffLabel.trim(),
+      latitude: dropoff.latitude,
+      longitude: dropoff.longitude,
     });
     setSaved(await loadSavedPlaces());
-    Alert.alert('Saved', 'Drop-off added to your saved places.');
-  }, [dropLat, dropLng]);
-
-  const applyPlace = useCallback((p: StoredPlace) => {
-    setDropLat(String(p.latitude));
-    setDropLng(String(p.longitude));
-  }, []);
+    Alert.alert('Saved', 'Destination added to saved places.');
+  }, [dropoff, dropoffLabel]);
 
   const onSubmit = async () => {
     if (!hasFirebaseConfig || !uid) {
-      Alert.alert('Not available', 'Sign in and connect this app to OtterRide cloud to request a ride.');
+      Alert.alert('Not available', 'Sign in and connect OtterRide cloud to request a ride.');
       return;
     }
-    const plat = parseCoord(pickupLat, NaN);
-    const plng = parseCoord(pickupLng, NaN);
-    const dlat = parseCoord(dropLat, NaN);
-    const dlng = parseCoord(dropLng, NaN);
-    if (![plat, plng, dlat, dlng].every(Number.isFinite)) {
-      Alert.alert('Coordinates', 'Enter valid numbers for pickup and drop-off.');
+    if (!pickup || !dropoff) {
+      Alert.alert('Locations', 'Set pickup and destination using search.');
       return;
     }
 
-    const est = estimates[productId];
     setBusy(true);
     try {
       const id = await createRideRequest({
         riderId: uid,
         riderName,
-        pickup: { latitude: plat, longitude: plng },
-        dropoff: { latitude: dlat, longitude: dlng },
+        pickup,
+        dropoff,
+        pickupLabel: pickupLabel.trim() || undefined,
+        dropoffLabel: dropoffLabel.trim() || undefined,
         rideProductId: productId,
-        fareEstimateUsd: est.fareUsd,
-        etaMinutesGuess: est.minutes,
+        fareEstimateUsd: selectedEstimate.fareUsd,
+        etaMinutesGuess: selectedEstimate.minutes,
       });
       await pushRecentDestination({
-        label: `Drop ${dlat.toFixed(3)}, ${dlng.toFixed(3)}`,
-        latitude: dlat,
-        longitude: dlng,
+        label: dropoffLabel.trim() || 'Destination',
+        latitude: dropoff.latitude,
+        longitude: dropoff.longitude,
       });
       router.replace({ pathname: '/(app)/ride/[id]', params: { id } });
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Could not create request';
-      Alert.alert('Error', message);
+      Alert.alert('Error', e instanceof Error ? e.message : 'Could not create request');
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-surface"
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SafeAreaView edges={['top']} className="flex-1">
-        <ScrollView
-          className="flex-1 px-5 pt-2"
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: 32 }}
-          showsVerticalScrollIndicator={false}>
-          <FadeInView>
-            <Text className="text-2xl font-bold text-ink">Where to?</Text>
-            <Text className="mt-1 text-sm text-gray-600">
-              Pick a ride type, confirm your pickup and destination, then send your request.
-            </Text>
+    <>
+      <Stack.Screen
+        options={{
+          title: 'Request ride',
+          headerShown: true,
+          headerStyle: { backgroundColor: '#F5F5F5' },
+          headerTintColor: '#1A1A1A',
+          headerTitleStyle: { fontWeight: '700', color: '#1A1A1A' },
+        }}
+      />
+      <KeyboardAvoidingView
+        className="flex-1 bg-surface"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <SafeAreaView edges={['bottom']} className="flex-1">
+          <ScrollView
+            className="flex-1 px-5"
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 32, paddingTop: 8 }}
+            showsVerticalScrollIndicator={false}>
+            <FadeInView>
+              <Text className="text-[28px] font-bold text-ink">Where to?</Text>
+              <Text className="mt-1 text-[15px] leading-5 text-gray-500">
+                Search by place name — prices are fixed and shown in {currency}.
+              </Text>
 
-            {!prefsLoaded ? (
-              <View className="mt-6 gap-2">
-                <SkeletonBox className="h-16 w-full" />
-                <SkeletonBox className="h-16 w-full" />
-              </View>
-            ) : (
-              <>
-                {recent.length > 0 ? (
-                  <View className="mt-6">
-                    <Text className="text-xs font-bold uppercase tracking-widest text-gray-500">
-                      Recent destinations
-                    </Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-2">
-                      <View className="flex-row gap-2 pb-1">
-                        {recent.map((p) => (
-                          <Pressable
-                            key={p.id}
-                            onPress={() => applyPlace(p)}
-                            className="max-w-[160px] rounded-2xl border border-gray-100 bg-white px-3 py-2 shadow-sm active:opacity-90">
-                            <FontAwesome name="clock-o" size={14} color="#6b7280" />
-                            <Text className="mt-1 text-xs font-semibold text-ink" numberOfLines={2}>
-                              {p.label}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </ScrollView>
-                  </View>
-                ) : null}
+              {!prefsLoaded ? (
+                <View className="mt-6 gap-2">
+                  <SkeletonBox className="h-20 w-full" />
+                  <SkeletonBox className="h-20 w-full" />
+                </View>
+              ) : (
+                <View className="mt-6 gap-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-lg shadow-black/8">
+                  <PlaceSearchField
+                    label="Pickup"
+                    placeholder="Search pickup location"
+                    value={pickupLabel}
+                    onChangeLabel={setPickupLabel}
+                    onSelectPlace={(c, lbl) => {
+                      setPickup(c);
+                      setPickupLabel(lbl);
+                    }}
+                    bias={pickup ?? undefined}
+                    dotColor="#22c55e"
+                  />
+                  <View className="ml-1.5 h-4 border-l-2 border-dashed border-gray-200" />
+                  <PlaceSearchField
+                    label="Destination"
+                    placeholder="Search destination"
+                    value={dropoffLabel}
+                    onChangeLabel={setDropoffLabel}
+                    onSelectPlace={(c, lbl) => {
+                      setDropoff(c);
+                      setDropoffLabel(lbl);
+                    }}
+                    bias={pickup ?? undefined}
+                    dotColor="#ef4444"
+                  />
 
-                {saved.length > 0 ? (
-                  <View className="mt-5">
-                    <Text className="text-xs font-bold uppercase tracking-widest text-gray-500">
-                      Saved places
-                    </Text>
-                    <View className="mt-2 flex-row flex-wrap gap-2">
-                      {saved.map((p) => (
+                  {(locState.status === 'denied' || locState.status === 'error') && (
+                    <Pressable onPress={() => void refresh()} className="mt-1 active:opacity-70">
+                      <Text className="text-sm font-semibold text-primary underline">
+                        {locState.message} — retry GPS
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+
+              {recent.length > 0 ? (
+                <View className="mt-5">
+                  <Text className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                    Recent
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-2">
+                    <View className="flex-row gap-2 pb-1">
+                      {recent.map((p) => (
                         <Pressable
                           key={p.id}
-                          onPress={() => applyPlace(p)}
-                          className="rounded-2xl border border-primary/30 bg-primary/10 px-3 py-2 active:opacity-90">
-                          <Text className="text-xs font-bold text-ink" numberOfLines={1}>
+                          onPress={() => applyDropoff(p)}
+                          className="max-w-[180px] rounded-2xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm active:opacity-90">
+                          <FontAwesome name="history" size={14} color="#6b7280" />
+                          <Text className="mt-1 text-xs font-semibold text-ink" numberOfLines={2}>
                             {p.label}
                           </Text>
                         </Pressable>
                       ))}
                     </View>
-                  </View>
-                ) : null}
-              </>
-            )}
+                  </ScrollView>
+                </View>
+              ) : null}
 
-            <View className="mt-6 rounded-4xl border border-gray-100 bg-white p-5 shadow-lg shadow-black/8">
-              <RideProductPicker
-                products={RIDE_PRODUCTS}
-                selectedId={productId}
-                onSelect={setProductId}
-                estimates={estimates}
-              />
+              {dropoff ? (
+                <View className="mt-6">
+                  <RideProductPicker
+                    products={RIDE_PRODUCTS}
+                    selectedId={productId}
+                    onSelect={setProductId}
+                    estimates={estimates}
+                    currencyCode={currency}
+                  />
+                </View>
+              ) : null}
 
-              <Text className="mt-8 text-xs font-bold uppercase tracking-wide text-gray-500">Pickup</Text>
-              <TextInput
-                className="mt-2 rounded-3xl border border-gray-200 bg-surface px-4 py-3.5 text-base text-ink"
-                keyboardType="numbers-and-punctuation"
-                value={pickupLat}
-                onChangeText={setPickupLat}
-                placeholder="Latitude"
-                placeholderTextColor="#9ca3af"
-              />
-              <TextInput
-                className="mt-2 rounded-3xl border border-gray-200 bg-surface px-4 py-3.5 text-base text-ink"
-                keyboardType="numbers-and-punctuation"
-                value={pickupLng}
-                onChangeText={setPickupLng}
-                placeholder="Longitude"
-                placeholderTextColor="#9ca3af"
-              />
-
-              <Text className="mt-6 text-xs font-bold uppercase tracking-wide text-gray-500">Drop-off</Text>
-              <TextInput
-                className="mt-2 rounded-3xl border border-gray-200 bg-surface px-4 py-3.5 text-base text-ink"
-                keyboardType="numbers-and-punctuation"
-                value={dropLat}
-                onChangeText={setDropLat}
-                placeholder="Latitude"
-                placeholderTextColor="#9ca3af"
-              />
-              <TextInput
-                className="mt-2 rounded-3xl border border-gray-200 bg-surface px-4 py-3.5 text-base text-ink"
-                keyboardType="numbers-and-punctuation"
-                value={dropLng}
-                onChangeText={setDropLng}
-                placeholder="Longitude"
-                placeholderTextColor="#9ca3af"
-              />
+              <View className="mt-6 rounded-3xl border border-primary/25 bg-primary/10 px-4 py-4">
+                <Text className="text-xs font-bold uppercase tracking-widest text-gray-600">
+                  Trip summary
+                </Text>
+                <Text className="mt-2 text-2xl font-bold text-ink">
+                  {dropoff
+                    ? formatMoney(selectedEstimate.fareUsd, currency)
+                    : '—'}
+                </Text>
+                <Text className="mt-1 text-sm text-gray-600">
+                  {dropoff ? `~${selectedEstimate.minutes} min · ${productId.replace('_', ' ')}` : 'Select a destination'}
+                </Text>
+              </View>
 
               <Pressable
                 onPress={() => void saveDropoff()}
-                className="mt-3 self-start rounded-xl px-1 py-2 active:opacity-80">
-                <Text className="text-sm font-bold text-ink underline">Save this drop-off</Text>
+                className="mt-4 self-start rounded-xl px-1 py-2 active:opacity-80">
+                <Text className="text-sm font-bold text-ink underline">Save destination</Text>
               </Pressable>
-
-              {(locState.status === 'denied' || locState.status === 'error') && (
-                <Pressable
-                  onPress={() => void refresh()}
-                  android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
-                  className="mt-4 self-start rounded-lg px-1 py-2 active:opacity-70">
-                  <Text className="text-sm font-semibold text-ink underline">
-                    {locState.message} — tap to retry GPS
-                  </Text>
-                </Pressable>
-              )}
 
               <Pressable
                 onPress={() => void onSubmit()}
-                disabled={busy}
-                android_ripple={{ color: 'rgba(0,0,0,0.12)' }}
-                className="mt-8 items-center justify-center rounded-3xl bg-primary py-4 shadow-md shadow-amber-900/20 active:opacity-95 disabled:opacity-50">
+                disabled={busy || !pickup || !dropoff}
+                className="mt-6 items-center justify-center rounded-3xl bg-primary py-4 shadow-md shadow-amber-900/20 active:opacity-95 disabled:opacity-50">
                 {busy ? (
                   <ActivityIndicator color="#1A1A1A" />
                 ) : (
-                  <Text className="text-base font-bold text-ink">Confirm & request ride</Text>
+                  <Text className="text-center text-base font-bold text-ink">Confirm & request ride</Text>
                 )}
               </Pressable>
 
               <Link href="/(app)/trip-history" asChild>
                 <Pressable className="mt-4 items-center py-2 active:opacity-80">
-                  <Text className="text-sm font-bold text-ink underline">View trip history</Text>
+                  <Text className="text-sm font-bold text-ink underline">Trip history</Text>
                 </Pressable>
               </Link>
-            </View>
-          </FadeInView>
-        </ScrollView>
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+            </FadeInView>
+          </ScrollView>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+    </>
   );
 }

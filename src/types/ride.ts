@@ -22,6 +22,8 @@ export type RideRequest = {
   riderName: string;
   pickup: GeoPoint;
   dropoff: GeoPoint;
+  pickupLabel?: string | null;
+  dropoffLabel?: string | null;
   status: RideStatus;
   /** Set when a driver claims the request (matching). */
   driverId?: string | null;

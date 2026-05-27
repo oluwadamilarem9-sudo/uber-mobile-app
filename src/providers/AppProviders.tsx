@@ -4,6 +4,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 
 import { getFirebaseAuth, hasFirebaseConfig } from '@/src/firebase/config';
 import { useAuthStore } from '@/src/stores/authStore';
+import { usePreferencesStore } from '@/src/stores/preferencesStore';
 
 function AuthListener({ children }: { children: ReactNode }) {
   useEffect(() => {
@@ -31,6 +32,7 @@ function AuthListener({ children }: { children: ReactNode }) {
 }
 
 export function AppProviders({ children }: { children: ReactNode }) {
+  const hydratePrefs = usePreferencesStore((s) => s.hydrate);
   const queryClient = useRef(
     new QueryClient({
       defaultOptions: {
@@ -43,6 +45,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
       },
     }),
   ).current;
+
+  useEffect(() => {
+    void hydratePrefs();
+  }, [hydratePrefs]);
 
   return (
     <QueryClientProvider client={queryClient}>

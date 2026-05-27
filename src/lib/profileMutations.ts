@@ -35,6 +35,8 @@ export async function saveUserProfile(uid: string, input: UserProfileDoc): Promi
       displayName: input.displayName.trim(),
       ...(avatar !== undefined ? { avatarUrl: avatar } : {}),
       phone: input.phone?.trim() ?? '',
+      ...(input.countryCode ? { countryCode: input.countryCode } : {}),
+      ...(input.preferredCurrency ? { preferredCurrency: input.preferredCurrency } : {}),
       role: input.role,
       mode: input.mode,
       updatedAt: serverTimestamp(),

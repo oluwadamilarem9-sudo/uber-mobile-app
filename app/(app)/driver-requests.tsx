@@ -122,7 +122,9 @@ export default function DriverRequestsScreen() {
                 </View>
               ) : null}
               {error ? (
-                <Text className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">{error}</Text>
+                <Text className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
+                  {error}
+                </Text>
               ) : null}
             </>
           }

@@ -1,5 +1,5 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, useRouter } from 'expo-router';
+import { Link, useRouter, type Href } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 import {
@@ -11,9 +11,9 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppPrimaryButton } from '@/components/otter/AppPrimaryButton';
+import { AuthScreenShell } from '@/components/otter/AuthScreenShell';
 import { AuthTextField } from '@/components/otter/AuthTextField';
 import { GoogleSignInBlock } from '@/components/otter/GoogleSignInBlock';
 import { OtterLogo } from '@/components/otter/OtterLogo';
@@ -24,10 +24,23 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [remember, setRemember] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const onSignIn = async () => {
+    setError(null);
+    const cleanedEmail = email.trim();
+    if (!cleanedEmail || !cleanedEmail.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (!password || password.length < 6) {
+      setError('Your password must be at least 6 characters.');
+      return;
+    }
+
     const auth = getFirebaseAuth();
     if (!auth) {
       Alert.alert(
@@ -38,7 +51,7 @@ export default function LoginScreen() {
     }
     setBusy(true);
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      await signInWithEmailAndPassword(auth, cleanedEmail, password);
       router.replace('/');
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Sign-in failed';
@@ -52,14 +65,7 @@ export default function LoginScreen() {
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       className="flex-1 bg-surface">
-      <SafeAreaView edges={['top']} className="bg-surface">
-        <View className="items-center px-6 pb-5 pt-2">
-          <OtterLogo />
-          <Text className="mt-2 text-sm font-medium text-gray-500">Quick, simple rides.</Text>
-        </View>
-      </SafeAreaView>
-
-      <View className="flex-1 rounded-t-[28px] bg-white px-6 pt-2 shadow-lg shadow-black/10">
+      <AuthScreenShell>
         <ScrollView
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -79,6 +85,12 @@ export default function LoginScreen() {
               Sign in with the email and password you used when you joined OtterRide.
             </Text>
 
+            {error ? (
+              <View className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                <Text className="text-sm font-semibold text-red-800">{error}</Text>
+              </View>
+            ) : null}
+
             <View className="mt-8">
               <AuthTextField
                 label="Email"
@@ -96,10 +108,18 @@ export default function LoginScreen() {
               <AuthTextField
                 label="Password"
                 icon="lock"
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
                 placeholder="••••••••"
+                rightSlot={
+                  <Pressable
+                    onPress={() => setShowPassword((s) => !s)}
+                    hitSlop={8}
+                    className="p-2 active:opacity-70">
+                    <FontAwesome name={showPassword ? 'eye-slash' : 'eye'} size={18} color="#6b7280" />
+                  </Pressable>
+                }
               />
             </View>
 
@@ -115,15 +135,11 @@ export default function LoginScreen() {
                 </View>
                 <Text className="text-sm text-gray-700">Remember me</Text>
               </Pressable>
-              <Pressable
-                onPress={() =>
-                  Alert.alert(
-                    'Reset password',
-                    'Password reset from the app is coming soon. Use the “Forgot password” link on the sign-in help page from your administrator if available.',
-                  )
-                }>
-                <Text className="text-sm font-bold text-ink">Forgot password?</Text>
-              </Pressable>
+              <Link href={'/(auth)/forgot-password' as Href} asChild>
+                <Pressable className="active:opacity-80">
+                  <Text className="text-sm font-bold text-ink">Forgot password?</Text>
+                </Pressable>
+              </Link>
             </View>
 
             <View className="mt-8">
@@ -151,8 +167,7 @@ export default function LoginScreen() {
             </Link>
           </FadeInView>
         </ScrollView>
-      </View>
-      <SafeAreaView edges={['bottom']} className="bg-white" />
+      </AuthScreenShell>
     </KeyboardAvoidingView>
   );
 }

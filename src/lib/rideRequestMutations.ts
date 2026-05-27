@@ -17,6 +17,8 @@ export async function createRideRequest(input: {
   riderName: string;
   pickup: GeoPoint;
   dropoff: GeoPoint;
+  pickupLabel?: string;
+  dropoffLabel?: string;
   rideProductId?: RideProductId;
   fareEstimateUsd?: number;
   etaMinutesGuess?: number;
@@ -27,6 +29,8 @@ export async function createRideRequest(input: {
     riderName: input.riderName,
     pickup: input.pickup,
     dropoff: input.dropoff,
+    ...(input.pickupLabel?.trim() ? { pickupLabel: input.pickupLabel.trim() } : {}),
+    ...(input.dropoffLabel?.trim() ? { dropoffLabel: input.dropoffLabel.trim() } : {}),
     status: 'requested' satisfies RideStatus,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),

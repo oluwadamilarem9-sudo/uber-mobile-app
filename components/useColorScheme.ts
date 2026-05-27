@@ -1,1 +1,4 @@
-export { useColorScheme } from 'react-native';
+/** OtterRide uses premium light mode only. */
+export function useColorScheme(): 'light' {
+  return 'light';
+}

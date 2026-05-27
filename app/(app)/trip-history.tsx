@@ -7,9 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SkeletonBox } from '@/components/ui/Skeleton';
 import { hasFirebaseConfig } from '@/src/firebase/config';
 import { useRideHistory } from '@/src/hooks/useRideHistory';
+import { formatMoney } from '@/src/lib/currency';
 import { getRideProduct } from '@/src/lib/rideEstimates';
 import type { RideRequest, RideStatus } from '@/src/types/ride';
 import { useAuthStore } from '@/src/stores/authStore';
+import { usePreferencesStore } from '@/src/stores/preferencesStore';
 
 function formatWhen(ride: RideRequest): string {
   const v = ride.createdAt as { toDate?: () => Date; seconds?: number } | undefined;
@@ -22,6 +24,16 @@ function formatWhen(ride: RideRequest): string {
   } catch {
     return '—';
   }
+}
+
+function formatRoute(ride: RideRequest): string {
+  const from =
+    ride.pickupLabel?.trim() ||
+    `${ride.pickup.latitude.toFixed(3)}, ${ride.pickup.longitude.toFixed(3)}`;
+  const to =
+    ride.dropoffLabel?.trim() ||
+    `${ride.dropoff.latitude.toFixed(3)}, ${ride.dropoff.longitude.toFixed(3)}`;
+  return `${from} → ${to}`;
 }
 
 function statusStyle(status: RideStatus): { bg: string; text: string; label: string } {
@@ -42,11 +54,21 @@ function statusStyle(status: RideStatus): { bg: string; text: string; label: str
   }
 }
 
-function TripCard({ ride, asRider }: { ride: RideRequest; asRider: boolean }) {
+function TripCard({
+  ride,
+  asRider,
+  currency,
+}: {
+  ride: RideRequest;
+  asRider: boolean;
+  currency: string;
+}) {
   const st = statusStyle(ride.status);
   const product = getRideProduct(ride.rideProductId ?? 'otter_x');
   const fare =
-    typeof ride.fareEstimateUsd === 'number' ? `$${ride.fareEstimateUsd.toFixed(0)}` : '—';
+    typeof ride.fareEstimateUsd === 'number'
+      ? formatMoney(ride.fareEstimateUsd, currency)
+      : '—';
 
   return (
     <Link href={{ pathname: '/(app)/ride/[id]', params: { id: ride.id } }} asChild>
@@ -78,9 +100,8 @@ function TripCard({ ride, asRider }: { ride: RideRequest; asRider: boolean }) {
         ) : null}
         <View className="mt-3 flex-row items-center gap-2">
           <FontAwesome name="map-marker" size={14} color="#6b7280" />
-          <Text className="flex-1 text-xs text-gray-500" numberOfLines={1}>
-            {ride.pickup.latitude.toFixed(3)}, {ride.pickup.longitude.toFixed(3)} →{' '}
-            {ride.dropoff.latitude.toFixed(3)}, {ride.dropoff.longitude.toFixed(3)}
+          <Text className="flex-1 text-xs text-gray-500" numberOfLines={2}>
+            {formatRoute(ride)}
           </Text>
         </View>
       </Pressable>
@@ -90,6 +111,7 @@ function TripCard({ ride, asRider }: { ride: RideRequest; asRider: boolean }) {
 
 export default function TripHistoryScreen() {
   const uid = useAuthStore((s) => s.user?.uid);
+  const currency = usePreferencesStore((s) => s.currency);
   const { items, loading, error } = useRideHistory(uid);
 
   const grouped = useMemo(() => {
@@ -105,7 +127,9 @@ export default function TripHistoryScreen() {
   if (!hasFirebaseConfig) {
     return (
       <SafeAreaView className="flex-1 bg-surface px-5 pt-4">
-        <Text className="text-base text-gray-600">Connect this app to OtterRide cloud to see your trip history.</Text>
+        <Text className="text-base text-gray-600">
+          Connect this app to OtterRide cloud to see your trip history.
+        </Text>
       </SafeAreaView>
     );
   }
@@ -128,10 +152,12 @@ export default function TripHistoryScreen() {
       ) : (
         <ScrollView className="flex-1 px-5 pt-4" contentContainerStyle={{ paddingBottom: 32 }}>
           {grouped.length === 0 ? (
-            <Text className="mt-10 text-center text-base text-gray-600">No trips yet.</Text>
+            <Text className="mt-10 text-center text-base text-gray-600">
+              No trips yet.
+            </Text>
           ) : (
             grouped.map((ride) => (
-              <TripCard key={ride.id} ride={ride} asRider={ride.riderId === uid} />
+              <TripCard key={ride.id} ride={ride} asRider={ride.riderId === uid} currency={currency} />
             ))
           )}
         </ScrollView>

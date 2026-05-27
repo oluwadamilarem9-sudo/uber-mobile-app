@@ -7,7 +7,7 @@
     "start:expo": "expo start --lan",
     "start:tunnel": "node scripts/start-tunnel-v3.mjs",
     "tunnel": "node scripts/start-tunnel-v3.mjs",
-    "expo": "node scripts/expo-cli.mjs",
+    "expo:cli": "node scripts/expo-cli.mjs",
     "check:tunnel": "node scripts/preflight-tunnel.mjs",
     "android": "expo start --lan --android",
     "ios": "expo start --lan --ios",

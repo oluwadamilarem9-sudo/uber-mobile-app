@@ -21,6 +21,7 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PreferencesSection } from '@/components/profile/PreferencesSection';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { getFirebaseAuth, hasFirebaseConfig } from '@/src/firebase/config';
 import { useDriverPresence } from '@/src/hooks/useDriverPresence';
@@ -36,6 +37,7 @@ import {
 import { appFonts } from '@/src/theme/fonts';
 import type { UserRole } from '@/src/types/profile';
 import { useAuthStore } from '@/src/stores/authStore';
+import { usePreferencesStore } from '@/src/stores/preferencesStore';
 
 function SettingsRow({
   icon,
@@ -104,6 +106,9 @@ export default function ProfileScreen() {
     role === 'driver' && uid ? uid : undefined,
   );
 
+  const setCurrencyPref = usePreferencesStore((s) => s.setCurrency);
+  const setCountryCodePref = usePreferencesStore((s) => s.setCountryCode);
+
   useEffect(() => {
     if (profile) {
       setDisplayName(profile.displayName);
@@ -111,10 +116,16 @@ export default function ProfileScreen() {
       setRole(profile.role);
       setMode(profile.mode);
       setAvatarUrl(profile.avatarUrl ?? user?.photoURL ?? undefined);
+      if (profile.countryCode) {
+        setCountryCodePref(profile.countryCode);
+      }
+      if (profile.preferredCurrency) {
+        setCurrencyPref(profile.preferredCurrency);
+      }
     } else {
       setAvatarUrl(user?.photoURL ?? undefined);
     }
-  }, [profile, user?.photoURL]);
+  }, [profile, setCountryCodePref, setCurrencyPref, user?.photoURL]);
 
   const display = displayName.trim() || user?.email?.split('@')[0] || 'You';
   const initial = display.charAt(0).toUpperCase();
@@ -145,11 +156,15 @@ export default function ProfileScreen() {
       Alert.alert('Name', 'Please enter your name.');
       return;
     }
+    const { currency, countryCode } = usePreferencesStore.getState();
+
     setBusy(true);
     try {
       await saveUserProfile(uid, {
         displayName: displayName.trim(),
         phone: phone.trim() || undefined,
+        countryCode,
+        preferredCurrency: currency,
         role,
         mode,
       });
@@ -345,7 +360,9 @@ export default function ProfileScreen() {
             </Text>
             <Text className="mt-1 text-[15px] text-gray-500">Manage your profile and preferences</Text>
 
-            <View className="mt-6 items-center rounded-3xl border border-gray-100 bg-white px-5 py-6 shadow-md shadow-black/6">
+            <PreferencesSection />
+
+            <View className="mt-5 items-center rounded-3xl border border-gray-100 bg-white px-5 py-6 shadow-md shadow-black/6">
               <Pressable onPress={() => void onPickAvatar()} disabled={busy || avatarBusy}>
                 <View className="relative">
                   {resolvedPhoto ? (

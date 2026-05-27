@@ -1,6 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Link, useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useState } from 'react';
 import {
   Alert,
@@ -11,23 +12,48 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppPrimaryButton } from '@/components/otter/AppPrimaryButton';
+import { AuthScreenShell } from '@/components/otter/AuthScreenShell';
 import { AuthTextField } from '@/components/otter/AuthTextField';
+import { PhoneNumberField } from '@/components/otter/PhoneNumberField';
 import { GoogleSignInBlock } from '@/components/otter/GoogleSignInBlock';
 import { OtterLogo } from '@/components/otter/OtterLogo';
 import { FadeInView } from '@/components/ui/FadeInView';
 import { getFirebaseAuth, hasFirebaseConfig } from '@/src/firebase/config';
+import { getFirestoreDb } from '@/src/firebase/firestore';
+import { syncAuthProfileBasics } from '@/src/lib/profileMutations';
+import { usePreferencesStore } from '@/src/stores/preferencesStore';
 
 export default function SignupScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [countryCode, setCountryCode] = useState('NG');
+  const setCountryCodePref = usePreferencesStore((s) => s.setCountryCode);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const onSignUp = async () => {
+    setError(null);
+    const cleanedEmail = email.trim();
+    if (!cleanedEmail || !cleanedEmail.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (!password || password.length < 6) {
+      setError('Your password must be at least 6 characters.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     const auth = getFirebaseAuth();
     if (!auth) {
       Alert.alert(
@@ -38,8 +64,26 @@ export default function SignupScreen() {
     }
     setBusy(true);
     try {
-      await createUserWithEmailAndPassword(auth, email.trim(), password);
-      router.replace('/');
+      const cred = await createUserWithEmailAndPassword(auth, cleanedEmail, password);
+      const uid = cred.user.uid;
+      const displayName = cleanedEmail.split('@')[0]?.trim() || 'Rider';
+
+      if (phone.trim()) {
+        const db = getFirestoreDb();
+        await setDoc(
+          doc(db, 'users', uid),
+          {
+            phone: phone.trim(),
+            countryCode,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        );
+      }
+
+      setCountryCodePref(countryCode);
+      await syncAuthProfileBasics(cred.user, displayName);
+      router.replace('/(app)/onboarding');
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Sign-up failed';
       Alert.alert('Could not create account', message);
@@ -52,17 +96,7 @@ export default function SignupScreen() {
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       className="flex-1 bg-surface">
-      <SafeAreaView edges={['top']} className="flex-row items-center justify-between bg-surface px-4 pb-2">
-        <Link href="/(auth)/login" asChild>
-          <Pressable className="h-10 w-10 items-center justify-center rounded-2xl bg-surface-muted active:opacity-80">
-            <FontAwesome name="chevron-left" size={18} color="#1A1A1A" />
-          </Pressable>
-        </Link>
-        <OtterLogo compact />
-        <View className="h-10 w-10" />
-      </SafeAreaView>
-
-      <View className="flex-1 rounded-t-[28px] bg-white px-6 pt-2 shadow-lg shadow-black/10">
+      <AuthScreenShell>
         <ScrollView
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -82,6 +116,12 @@ export default function SignupScreen() {
               Create your account to start booking rides with OtterRide.
             </Text>
 
+            {error ? (
+              <View className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                <Text className="text-sm font-semibold text-red-800">{error}</Text>
+              </View>
+            ) : null}
+
             <View className="mt-8">
               <AuthTextField
                 label="Email"
@@ -92,6 +132,18 @@ export default function SignupScreen() {
                 value={email}
                 onChangeText={setEmail}
                 placeholder="you@example.com"
+              />
+            </View>
+
+            <View className="mt-5">
+              <PhoneNumberField
+                label="Phone number"
+                value={phone}
+                onChangeValue={setPhone}
+                onCountryChange={(code) => {
+                  setCountryCode(code);
+                  setCountryCodePref(code);
+                }}
               />
             </View>
 
@@ -109,6 +161,29 @@ export default function SignupScreen() {
                     hitSlop={8}
                     className="p-2 active:opacity-70">
                     <FontAwesome name={showPassword ? 'eye-slash' : 'eye'} size={18} color="#6b7280" />
+                  </Pressable>
+                }
+              />
+            </View>
+
+            <View className="mt-5">
+              <AuthTextField
+                label="Confirm password"
+                icon="lock"
+                secureTextEntry={!showConfirmPassword}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Repeat your password"
+                rightSlot={
+                  <Pressable
+                    onPress={() => setShowConfirmPassword((s) => !s)}
+                    hitSlop={8}
+                    className="p-2 active:opacity-70">
+                    <FontAwesome
+                      name={showConfirmPassword ? 'eye-slash' : 'eye'}
+                      size={18}
+                      color="#6b7280"
+                    />
                   </Pressable>
                 }
               />
@@ -138,8 +213,7 @@ export default function SignupScreen() {
             </Link>
           </FadeInView>
         </ScrollView>
-      </View>
-      <SafeAreaView edges={['bottom']} className="bg-white" />
+      </AuthScreenShell>
     </KeyboardAvoidingView>
   );
 }

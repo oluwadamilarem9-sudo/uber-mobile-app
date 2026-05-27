@@ -9,7 +9,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { loadAsync, useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -18,7 +18,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { enableFreeze } from 'react-native-screens';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { useColorScheme } from '@/components/useColorScheme';
 import { AppProviders } from '@/src/providers/AppProviders';
 
 export { ErrorBoundary } from 'expo-router';
@@ -30,6 +29,18 @@ export const unstable_settings = {
 enableFreeze(true);
 
 SplashScreen.preventAutoHideAsync();
+
+const otterNavTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: '#FFD000',
+    background: '#F5F5F5',
+    card: '#FFFFFF',
+    text: '#1A1A1A',
+    border: 'rgba(26,26,26,0.10)',
+  },
+};
 
 export default function RootLayout() {
   const faWarmStarted = useRef(false);
@@ -65,11 +76,9 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
   return (
     <AppProviders>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={otterNavTheme}>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <SafeAreaProvider>
             <Stack

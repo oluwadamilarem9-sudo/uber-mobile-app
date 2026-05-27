@@ -10,6 +10,14 @@ function parseProfile(data: Record<string, unknown>): UserProfileDoc | null {
   const role = data.role === 'rider' || data.role === 'driver' ? data.role : undefined;
   const mode = data.mode === 'rider' || data.mode === 'driver' ? data.mode : undefined;
   const phone = typeof data.phone === 'string' ? data.phone.trim() : undefined;
+  const countryCode =
+    typeof data.countryCode === 'string' && data.countryCode.trim().length > 0
+      ? data.countryCode.trim()
+      : undefined;
+  const preferredCurrency =
+    typeof data.preferredCurrency === 'string' && data.preferredCurrency.trim().length > 0
+      ? data.preferredCurrency.trim()
+      : undefined;
   const avatarUrl =
     typeof data.avatarUrl === 'string' && data.avatarUrl.trim().length > 0
       ? data.avatarUrl.trim()
@@ -23,6 +31,8 @@ function parseProfile(data: Record<string, unknown>): UserProfileDoc | null {
     displayName,
     avatarUrl,
     phone: phone || undefined,
+    countryCode,
+    preferredCurrency,
     role,
     mode: mode ?? role,
   };

@@ -1,8 +1,10 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
-import { Image, ScrollView, Text, View } from 'react-native';
+import { Alert, Image, Linking, ScrollView, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/ui/PressableScale';
+import { getDriverAvatar, getDriverBanner } from '@/src/data/driverAssets';
 import { getFeaturedRideById } from '@/src/data/featuredRides';
 import { appFonts } from '@/src/theme/fonts';
 
@@ -45,6 +47,9 @@ export default function DriverDetailScreen() {
         ? 'On a trip'
         : 'Offline';
 
+  const banner = getDriverBanner(ride.id);
+  const avatar = getDriverAvatar(ride.id);
+
   return (
     <View className="flex-1 bg-surface">
       <Stack.Screen
@@ -58,15 +63,20 @@ export default function DriverDetailScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 36 }}>
-        <View className="relative h-52 w-full overflow-hidden bg-surface-muted">
-          <Image source={{ uri: ride.imageUrl }} className="h-full w-full" resizeMode="cover" />
-          <View className="absolute inset-0 bg-black/20" />
+        <View className="relative h-56 w-full overflow-hidden bg-surface-muted">
+          <Image source={banner} className="h-full w-full" resizeMode="cover" />
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.5)']}
+            className="absolute inset-0"
+          />
         </View>
 
-        <View className="-mt-10 px-4">
+        <View className="-mt-12 px-4">
           <View className="rounded-3xl border border-gray-100 bg-white p-5 shadow-lg shadow-black/10">
             <View className="flex-row items-start gap-4">
-              <Image source={{ uri: ride.avatarUrl }} className="h-20 w-20 rounded-2xl bg-surface-muted" />
+              <View className="h-20 w-20 overflow-hidden rounded-2xl border-2 border-white bg-white shadow-md">
+                <Image source={avatar} className="h-full w-full" resizeMode="cover" />
+              </View>
               <View className="min-w-0 flex-1">
                 <Text className="text-2xl font-bold text-ink" style={{ fontFamily: appFonts.bold }}>
                   {ride.driverName}
@@ -146,8 +156,14 @@ export default function DriverDetailScreen() {
                 <Text className="text-base font-bold text-ink">Request a ride</Text>
               </PressableScale>
             </Link>
-            <PressableScale className="items-center rounded-2xl border border-gray-200 bg-white py-4 shadow-sm">
-              <Text className="text-base font-semibold text-gray-500">Message driver (coming soon)</Text>
+            <PressableScale
+              className="items-center rounded-2xl border border-gray-200 bg-white py-4 shadow-sm"
+              onPress={() => {
+                void Linking.openURL('tel:+18005550199').catch(() => {
+                  Alert.alert('Contact', 'Could not open the phone app on this device.');
+                });
+              }}>
+              <Text className="text-base font-bold text-ink">Contact driver</Text>
             </PressableScale>
           </View>
         </View>

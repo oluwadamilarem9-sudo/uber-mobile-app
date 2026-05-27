@@ -8,7 +8,14 @@ function parseRideProductId(v: unknown): RideProductId | null | undefined {
   if (v === null) {
     return null;
   }
-  if (v === 'otter_x' || v === 'otter_comfort' || v === 'otter_xl') {
+  if (
+    v === 'otter_x' ||
+    v === 'otter_comfort' ||
+    v === 'otter_xl' ||
+    v === 'otter_premium' ||
+    v === 'otter_green' ||
+    v === 'otter_shared'
+  ) {
     return v;
   }
   return null;
@@ -67,6 +74,8 @@ export function parseRideRequestDoc(id: string, data: Record<string, unknown>): 
     riderName,
     pickup,
     dropoff,
+    pickupLabel: typeof data.pickupLabel === 'string' ? data.pickupLabel : null,
+    dropoffLabel: typeof data.dropoffLabel === 'string' ? data.dropoffLabel : null,
     status,
     driverId: typeof data.driverId === 'string' ? data.driverId : null,
     driverName: typeof data.driverName === 'string' ? data.driverName : null,

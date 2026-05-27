@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { PhoneNumberField } from '@/components/otter/PhoneNumberField';
 import { hasFirebaseConfig } from '@/src/firebase/config';
 import { useUserProfile } from '@/src/hooks/useUserProfile';
 import { completeOnboarding } from '@/src/lib/profileMutations';
@@ -41,6 +42,17 @@ export default function OnboardingScreen() {
   const sentToTabsRef = useRef(false);
 
   useEffect(() => {
+    if (profile?.displayName && !displayName) {
+      setDisplayName(profile.displayName);
+    } else if (!displayName && user?.email) {
+      setDisplayName(user.email.split('@')[0] ?? '');
+    }
+    if (profile?.phone && !phone) {
+      setPhone(profile.phone);
+    }
+  }, [profile, user?.email, displayName, phone]);
+
+  useEffect(() => {
     if (!hasFirebaseConfig || !uid) {
       return;
     }
@@ -59,7 +71,7 @@ export default function OnboardingScreen() {
 
   if (!hasFirebaseConfig) {
     return (
-      <View className="flex-1 justify-center bg-white px-6">
+      <View className="flex-1 justify-center bg-surface px-6">
         <Text className="text-center text-base text-gray-700">
           Connect this app to OtterRide cloud to save your profile and continue.
         </Text>
@@ -78,7 +90,7 @@ export default function OnboardingScreen() {
 
   if (!isPending && profileLooksComplete(profile)) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <View className="flex-1 items-center justify-center bg-surface">
         <ActivityIndicator size="large" color="#FFCC00" />
       </View>
     );
@@ -86,7 +98,7 @@ export default function OnboardingScreen() {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <View className="flex-1 items-center justify-center bg-surface">
         <ActivityIndicator size="large" color="#FFCC00" />
       </View>
     );
@@ -141,15 +153,9 @@ export default function OnboardingScreen() {
               className="mt-2 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-base text-ink shadow-sm"
             />
 
-            <Text className="mt-4 text-sm font-medium text-gray-700">Phone (optional)</Text>
-            <TextInput
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              placeholder="+1 …"
-              placeholderTextColor="#9ca3af"
-              className="mt-2 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-base text-ink shadow-sm"
-            />
+            <View className="mt-4">
+              <PhoneNumberField label="Phone (optional)" value={phone} onChangeValue={setPhone} />
+            </View>
 
             <Pressable
               disabled={busy}
@@ -162,27 +168,33 @@ export default function OnboardingScreen() {
           <>
             <Text className="text-2xl font-bold text-ink">How will you use OtterRide?</Text>
             <Text className="mt-2 text-sm text-gray-600">
-              You can change this later in Profile. Phase 3+ adds maps and rides.
+              You can change this later in Profile.
             </Text>
 
             <View className="mt-8 gap-4">
               <Pressable
                 onPress={() => setRole('rider')}
                 className={`rounded-2xl border-2 px-4 py-5 ${
-                  role === 'rider' ? 'border-primary bg-amber-50' : 'border-gray-200 bg-white'
+                  role === 'rider'
+                    ? 'border-primary bg-amber-50'
+                    : 'border-gray-200 bg-white'
                 }`}>
                 <Text className="text-lg font-semibold text-gray-900">Rider</Text>
-                <Text className="mt-1 text-sm text-gray-600">Book trips and see fare estimates.</Text>
+                <Text className="mt-1 text-sm text-gray-600">
+                  Book trips and see fare estimates.
+                </Text>
               </Pressable>
 
               <Pressable
                 onPress={() => setRole('driver')}
                 className={`rounded-2xl border-2 px-4 py-5 ${
-                  role === 'driver' ? 'border-primary bg-amber-50' : 'border-gray-200 bg-white'
+                  role === 'driver'
+                    ? 'border-primary bg-amber-50'
+                    : 'border-gray-200 bg-white'
                 }`}>
                 <Text className="text-lg font-semibold text-gray-900">Driver</Text>
                 <Text className="mt-1 text-sm text-gray-600">
-                  Accept requests and earn on trips (coming in later phases).
+                  Accept requests and earn on trips.
                 </Text>
               </Pressable>
             </View>

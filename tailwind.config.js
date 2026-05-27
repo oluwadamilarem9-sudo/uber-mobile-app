@@ -19,6 +19,7 @@ module.exports = {
         ink: '#1A1A1A',
         surface: '#F5F5F5',
         'surface-muted': '#EDEDED',
+        'surface-card': '#FFFFFF',
       },
       borderRadius: {
         '4xl': '2rem',

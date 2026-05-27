@@ -11,8 +11,6 @@ export type FeaturedRide = {
   priceLabel: string;
   vehicleName: string;
   etaMins: string;
-  imageUrl: string;
-  avatarUrl: string;
   rating: number;
   reviewCount: number;
   yearsExperience: number;
@@ -36,8 +34,6 @@ export const FEATURED_RIDES: FeaturedRide[] = [
     priceLabel: '$24/hr',
     vehicleName: 'Tesla Model 3',
     etaMins: '4 min',
-    imageUrl: 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=900&q=80',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80',
     rating: 4.92,
     reviewCount: 428,
     yearsExperience: 6,
@@ -60,8 +56,6 @@ export const FEATURED_RIDES: FeaturedRide[] = [
     priceLabel: '$22/hr',
     vehicleName: 'Toyota Camry',
     etaMins: '7 min',
-    imageUrl: 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=900&q=80',
-    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80',
     rating: 4.88,
     reviewCount: 612,
     yearsExperience: 4,
@@ -83,8 +77,6 @@ export const FEATURED_RIDES: FeaturedRide[] = [
     priceLabel: '$32/hr',
     vehicleName: 'BMW 5 Series',
     etaMins: '12 min',
-    imageUrl: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=900&q=80',
-    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&q=80',
     rating: 4.95,
     reviewCount: 301,
     yearsExperience: 8,
@@ -97,6 +89,63 @@ export const FEATURED_RIDES: FeaturedRide[] = [
     reviews: [
       { author: 'Taylor B.', rating: 5, text: 'Worth every penny for a long ride after a red-eye.' },
       { author: 'Sam D.', rating: 5, text: 'Immaculate vehicle and very discreet.' },
+    ],
+  },
+  {
+    id: '4',
+    driverName: 'Priya Nair',
+    tagline: 'Airport specialist',
+    priceLabel: '$26/hr',
+    vehicleName: 'Honda Accord',
+    etaMins: '5 min',
+    rating: 4.9,
+    reviewCount: 512,
+    yearsExperience: 5,
+    completedTrips: 2100,
+    vehicleColor: 'Silver',
+    licensePlate: 'OTR 119',
+    availability: 'available',
+    about: 'Early-morning airport runs and luggage help included. Calm, punctual, and always on time.',
+    reviews: [
+      { author: 'Leo M.', rating: 5, text: 'Made a tight flight with minutes to spare. Highly recommend.' },
+    ],
+  },
+  {
+    id: '5',
+    driverName: 'Marcus Chen',
+    tagline: 'City shortcuts pro',
+    priceLabel: '$21/hr',
+    vehicleName: 'Hyundai Ioniq 5',
+    etaMins: '6 min',
+    rating: 4.86,
+    reviewCount: 389,
+    yearsExperience: 3,
+    completedTrips: 1420,
+    vehicleColor: 'Graphite',
+    licensePlate: 'OTR 442',
+    availability: 'available',
+    about: 'EV driver focused on smooth, quiet rides. Great for downtown and evening commutes.',
+    reviews: [
+      { author: 'Nina R.', rating: 5, text: 'Silent cabin and super clean — loved it.' },
+    ],
+  },
+  {
+    id: '6',
+    driverName: 'Elena Vasquez',
+    tagline: 'Family-friendly rides',
+    priceLabel: '$23/hr',
+    vehicleName: 'Kia Carnival',
+    etaMins: '9 min',
+    rating: 4.91,
+    reviewCount: 276,
+    yearsExperience: 7,
+    completedTrips: 1680,
+    vehicleColor: 'Pearl white',
+    licensePlate: 'OTR 903',
+    availability: 'available',
+    about: 'Spacious van for groups, kids, and extra bags. Car seats available on request.',
+    reviews: [
+      { author: 'Jamie L.', rating: 5, text: 'Perfect for our family airport trip.' },
     ],
   },
 ];

@@ -2,9 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline, type Region } from 'react-native-maps';
 
-import { useColorScheme } from '@/components/useColorScheme';
 import { fetchDrivingRoute, type LatLng } from '@/src/lib/directions';
-import { mapDarkStyle } from '@/src/lib/mapDarkStyle';
 import type { RideRequest } from '@/src/types/ride';
 
 type Props = {
@@ -24,8 +22,6 @@ function toLatLng(p: { latitude: number; longitude: number }): LatLng {
 }
 
 export function RideTripMap({ ride, fullScreen, height = 220, ghostCars }: Props) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
   const [routeCoords, setRouteCoords] = useState<LatLng[]>([]);
   const [routing, setRouting] = useState(false);
 
@@ -132,7 +128,7 @@ export function RideTripMap({ ride, fullScreen, height = 220, ghostCars }: Props
         showsMyLocationButton={Platform.OS === 'android'}
         showsTraffic={fullScreen === true && MAP_FEATURES.traffic}
         loadingEnabled
-        customMapStyle={fullScreen && isDark ? [...mapDarkStyle] : undefined}>
+        >
         <Marker coordinate={toLatLng(ride.pickup)} title="Pickup" pinColor="#22c55e" />
         <Marker coordinate={toLatLng(ride.dropoff)} title="Drop-off" pinColor="#ef4444" />
         {ghostCars?.map((g, i) => (

@@ -2,6 +2,9 @@
 
 # dependencies
 node_modules/
+node_modules_old/
+node_modules._*/
+node_modules._delete_*/
 
 # Expo
 .expo/
